@@ -12,65 +12,47 @@ export class ExchangeRateService {
   ) { }
 
   private async getExchangeRate(name: string) {
-    try {
-      const dolarRate: any = await this.cacheManager.get('dolarRate');
-      const euroRate: any = await this.cacheManager.get('euroRate');
-      const solesRate: any = await this.cacheManager.get('solesRate');
+    const supportedCurrencies = ['dolar', 'euro', 'libra'];
+    const currencyRate = await this.cacheManager.get(`${name.toLowerCase()}Rate`);
 
-      if (name.toLowerCase() === 'dolar') {
-        return {
-          message: 'Tasa de cambio obtenida con éxito',
-          data: {
-            name,
-            value: dolarRate
-          }
-        }
-      } else if (name.toLowerCase() === 'euro') {
-        return {
-          message: 'Tasa de cambio obtenida con éxito',
-          data: {
-            name,
-            value: euroRate
-          }
-        }
-      } else if (name.toLowerCase() === 'soles') {
-        return {
-          message: 'Tasa de cambio obtenida con éxito',
-          data: {
-            name,
-            value: solesRate
-          }
-        }
-      } else {
-        throw new BadRequestException('Moneda no soportada');
-      }
-    } catch (error) {
-      console.log(error);
+    if (!supportedCurrencies.includes(name.toLowerCase())) {
+      throw new BadRequestException('Moneda no soportada');
     }
+
+    return {
+      message: 'Tasa de cambio obtenida con éxito',
+      data: {
+        name,
+        value: currencyRate
+      }
+    };
   }
 
   async calculateExchangeRate(createExchangeRate: CreateExchangeRateDto) {
     try {
-
       const { moneda_destino, moneda_origen, monto } = createExchangeRate;
 
-      if (!moneda_origen || !moneda_destino || !monto) throw new BadRequestException('Faltan datos para realizar la operación');
+      if (!moneda_origen || !moneda_destino || !monto) {
+        throw new BadRequestException('Faltan datos para realizar la operación');
+      }
 
-      const exchangeRate = await this.getExchangeRate(moneda_origen);
-      const exhangeRateValue = exchangeRate.data.value
-      if (!exhangeRateValue) throw new BadRequestException('No se ha configurado la tasa de cambio');
+      const exchangeRate = await this.getExchangeRate(moneda_destino);
+      const exhangeRateValue = exchangeRate.data.value as number;
 
-      const result = monto * exhangeRateValue; //monto con tipo de cambio
+      if (!exhangeRateValue) {
+        throw new BadRequestException('No se ha configurado la tasa de cambio');
+      }
+
+      const monto_con_tipo_de_cambio = monto * exhangeRateValue;
 
       return {
         message: 'Operación realizada con éxito',
         data: {
           ...createExchangeRate,
           tipo_de_cambio: exhangeRateValue,
-          monto_con_tipo_de_cambio: result,
-        }
-      }
-
+          monto_con_tipo_de_cambio,
+        },
+      };
     } catch (error) {
       console.log(error);
       throw new BadRequestException('No se ha configurado la tasa de cambio');
@@ -81,11 +63,18 @@ export class ExchangeRateService {
     await this.cacheManager.del('exchangeRate');
     const { moneda_origen, valor } = updateExchangeRate;
 
-    if (!moneda_origen || !valor) throw new BadRequestException('Faltan datos para realizar la operación');
+    if (!moneda_origen || !valor) {
+      throw new BadRequestException('Faltan datos para realizar la operación');
+    }
 
-    if (moneda_origen.toLowerCase() !== 'dolar' && moneda_origen.toLowerCase() !== 'euro' && moneda_origen.toLowerCase() !== 'soles') throw new BadRequestException('Moneda no soportada. Solo soporta Dolar, Euro y Soles');
+    const supportedCurrencies = ['dolar', 'euro', 'libra'];
+    const lowerCaseMonedaOrigen = moneda_origen.toLowerCase();
 
-    await this.cacheManager.set(`${moneda_origen.toLowerCase()}Rate`, valor);
+    if (!supportedCurrencies.includes(lowerCaseMonedaOrigen)) {
+      throw new BadRequestException('Moneda no soportada. Solo soporta Dolar, Euro y Libras');
+    }
+
+    await this.cacheManager.set(`${lowerCaseMonedaOrigen}Rate`, valor);
 
     return {
       message: 'Tasa de cambio actualizada con éxito',
@@ -93,7 +82,7 @@ export class ExchangeRateService {
         moneda_origen,
         valor
       }
-    }
+    };
   }
 
 }
