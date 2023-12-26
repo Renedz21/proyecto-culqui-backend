@@ -15,18 +15,17 @@ export class UserRoleGuard implements CanActivate {
   ): boolean | Promise<boolean> | Observable<boolean> {
 
     const validRoles: string[] = this.reflector.get<string[]>(META_ROLES, context.getHandler());
-    //if (!validRoles) return true;
 
     const request = context.switchToHttp().getRequest();
     const user = request.user as User;
     if (!user) {
-      throw new BadRequestException('User not found.');
+      throw new BadRequestException('No se ha encontrado el usuario.');
     }
 
     for (const role of user.roles) {
       if (validRoles.includes(role)) return true;
     }
 
-    throw new ForbiddenException('You do not have permission to access this resource.');
+    throw new ForbiddenException('No tienes los permisos para realizar esta acción.');
   }
 }
